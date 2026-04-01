@@ -1,11 +1,13 @@
 #!/bin/bash
 set -e
 
-PROXY_PORT="${1:-8443}"
-SIMPLEONE_URL="${2:-}"
+PROXY_PORT_HTTP="${1:-8443}"
+PROXY_PORT_HTTPS="${2:-8444}"
+SIMPLEONE_URL="${3:-}"
 
 echo "=== Telegram Bi-directional Proxy Installer ==="
-echo "Port: ${PROXY_PORT}"
+echo "HTTP  port (SimpleOne -> Telegram): ${PROXY_PORT_HTTP}"
+echo "HTTPS port (Telegram -> SimpleOne): ${PROXY_PORT_HTTPS}"
 echo ""
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -102,17 +104,14 @@ WEBHOOK_BLOCK
     fi
 
     cat > "$CONF_FILE" <<NGINX_CONF
+# =================================================================
+# Server 1: HTTP - for SimpleOne outgoing requests to Telegram API
+# SimpleOne -> http://THIS:${PROXY_PORT_HTTP}/bot.../sendMessage -> api.telegram.org
+# =================================================================
 server {
-    listen ${PROXY_PORT} ssl;
+    listen ${PROXY_PORT_HTTP};
     server_name _;
 
-    ssl_certificate ${CERT_FILE};
-    ssl_certificate_key ${KEY_FILE};
-    ssl_protocols TLSv1.2 TLSv1.3;
-
-    # ============================================================
-    # Direction 1: SimpleOne -> Telegram API (outgoing)
-    # ============================================================
     location / {
         proxy_pass https://api.telegram.org;
         proxy_set_header Host api.telegram.org;
@@ -122,10 +121,19 @@ server {
         proxy_read_timeout 30s;
         proxy_send_timeout 10s;
     }
+}
 
-    # ============================================================
-    # Direction 2: Telegram -> SimpleOne (incoming webhooks)
-    # ============================================================
+# =================================================================
+# Server 2: HTTPS - for Telegram incoming webhooks to SimpleOne
+# Telegram -> https://THIS:${PROXY_PORT_HTTPS}/webhook/STAND/... -> SimpleOne
+# =================================================================
+server {
+    listen ${PROXY_PORT_HTTPS} ssl;
+    server_name _;
+
+    ssl_certificate ${CERT_FILE};
+    ssl_certificate_key ${KEY_FILE};
+    ssl_protocols TLSv1.2 TLSv1.3;
 
 ${WEBHOOK_STAND_BLOCK}
 
@@ -143,76 +151,67 @@ echo "[5/7] Restarting nginx..."
 systemctl restart nginx
 systemctl enable nginx 2>/dev/null
 
-echo "[6/7] Opening port ${PROXY_PORT}..."
-if command -v ufw > /dev/null 2>&1; then
-    ufw allow "${PROXY_PORT}/tcp" > /dev/null 2>&1 || true
-    echo "  ufw: port ${PROXY_PORT} opened"
-elif command -v firewall-cmd > /dev/null 2>&1; then
-    firewall-cmd --permanent --add-port="${PROXY_PORT}/tcp" > /dev/null 2>&1 || true
+echo "[6/7] Opening ports..."
+for PORT in "$PROXY_PORT_HTTP" "$PROXY_PORT_HTTPS"; do
+    if command -v ufw > /dev/null 2>&1; then
+        ufw allow "${PORT}/tcp" > /dev/null 2>&1 || true
+        echo "  ufw: port ${PORT} opened"
+    elif command -v firewall-cmd > /dev/null 2>&1; then
+        firewall-cmd --permanent --add-port="${PORT}/tcp" > /dev/null 2>&1 || true
+        echo "  firewalld: port ${PORT} opened"
+    fi
+done
+if command -v firewall-cmd > /dev/null 2>&1; then
     firewall-cmd --reload > /dev/null 2>&1 || true
-    echo "  firewalld: port ${PROXY_PORT} opened"
-else
-    echo "  No firewall manager found, skipping"
 fi
 
 echo "[7/7] Done!"
 echo ""
 echo "====================================="
-echo "  SSL CERTIFICATE"
-echo "====================================="
-echo ""
-echo "Self-signed cert (for Telegram setWebhook):"
-echo "  ${CERT_FILE}"
-echo ""
-echo "To download for setWebhook certificate param:"
-echo "  scp root@${SERVER_IP}:${CERT_FILE} ./telegram-proxy.pem"
-echo ""
-echo "====================================="
-echo "  OUTGOING (SimpleOne -> Telegram)"
+echo "  OUTGOING: SimpleOne -> Telegram"
+echo "  (HTTP, port ${PROXY_PORT_HTTP})"
 echo "====================================="
 echo ""
 echo "Test:"
-echo "  curl -sk https://${SERVER_IP}:${PROXY_PORT}/botTOKEN/getMe"
+echo "  curl -s http://${SERVER_IP}:${PROXY_PORT_HTTP}/botTOKEN/getMe"
 echo ""
 echo "SimpleOne system properties:"
-echo "  itsm.telegram_bot.url = https://${SERVER_IP}:${PROXY_PORT}"
-echo "  vcsm.telegram_bot.url = https://${SERVER_IP}:${PROXY_PORT}"
+echo "  itsm.telegram_bot.url = http://${SERVER_IP}:${PROXY_PORT_HTTP}"
+echo "  vcsm.telegram_bot.url = http://${SERVER_IP}:${PROXY_PORT_HTTP}"
 echo ""
 
 if [ -n "$SIMPLEONE_URL" ]; then
     echo "====================================="
-    echo "  INCOMING (Telegram -> SimpleOne)"
+    echo "  INCOMING: Telegram -> SimpleOne"
+    echo "  (HTTPS, port ${PROXY_PORT_HTTPS})"
     echo "====================================="
     echo ""
-    echo "Webhook URL prefix for stand '${STAND_NAME}':"
-    echo "  https://${SERVER_IP}:${PROXY_PORT}/webhook/${STAND_NAME}"
-    echo ""
     echo "SimpleOne system properties:"
-    echo "  itsm.telegram_bot.webhook_url = https://${SERVER_IP}:${PROXY_PORT}/webhook/${STAND_NAME}"
-    echo "  vcsm.telegram_bot.webhook_url = https://${SERVER_IP}:${PROXY_PORT}/webhook/${STAND_NAME}"
+    echo "  itsm.telegram_bot.webhook_url = https://${SERVER_IP}:${PROXY_PORT_HTTPS}/webhook/${STAND_NAME}"
+    echo "  vcsm.telegram_bot.webhook_url = https://${SERVER_IP}:${PROXY_PORT_HTTPS}/webhook/${STAND_NAME}"
+    echo ""
+    echo "====================================="
+    echo "  REGISTER WEBHOOK (once per bot)"
+    echo "====================================="
+    echo ""
+    echo "  curl -F \"url=https://${SERVER_IP}:${PROXY_PORT_HTTPS}/webhook/${STAND_NAME}/v1/api/SLUG/MODULE/VERSION/ACTION\" \\"
+    echo "       -F \"certificate=@${CERT_FILE}\" \\"
+    echo "       https://api.telegram.org/botYOUR_BOT_TOKEN/setWebhook"
     echo ""
 fi
 
 echo "====================================="
-echo "  REGISTER WEBHOOK (run once per bot)"
+echo "  SSL CERTIFICATE"
 echo "====================================="
 echo ""
-echo "For self-signed certs, register webhook WITH certificate from this server:"
-echo ""
-echo "  curl -F \"url=https://${SERVER_IP}:${PROXY_PORT}/webhook/STAND_NAME/v1/api/SLUG/MODULE/VERSION/ACTION\" \\"
-echo "       -F \"certificate=@${CERT_FILE}\" \\"
-echo "       https://api.telegram.org/botYOUR_BOT_TOKEN/setWebhook"
-echo ""
-echo "After the first registration with certificate, SimpleOne widget"
-echo "can re-register webhooks without the certificate file."
+echo "  ${CERT_FILE}"
 echo ""
 echo "====================================="
 echo "  ADD MORE STANDS"
 echo "====================================="
 echo ""
 echo "Re-run with a different SimpleOne URL:"
-echo "  sudo bash $0 ${PROXY_PORT} https://OTHER_STAND.simpleone.ru"
+echo "  sudo bash $0 ${PROXY_PORT_HTTP} ${PROXY_PORT_HTTPS} https://OTHER.simpleone.ru"
 echo ""
-echo "Config file:"
-echo "  ${CONF_FILE}"
+echo "Config: ${CONF_FILE}"
 echo ""
