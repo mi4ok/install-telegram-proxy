@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-PROXY_PORT_HTTP="${1:-8443}"
-PROXY_PORT_HTTPS="${2:-8444}"
+PROXY_PORT_HTTP="${1:-8080}"
+PROXY_PORT_HTTPS="${2:-8443}"
 SIMPLEONE_URL="${3:-}"
 
 echo "=== Telegram Bi-directional Proxy Installer ==="
