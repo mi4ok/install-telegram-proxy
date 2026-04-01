@@ -111,9 +111,12 @@ WEBHOOK_BLOCK
 server {
     listen ${PROXY_PORT_HTTP};
     server_name _;
+    resolver 8.8.8.8 ipv6=off;
+
+    set \$telegram_api https://api.telegram.org;
 
     location / {
-        proxy_pass https://api.telegram.org;
+        proxy_pass \$telegram_api;
         proxy_set_header Host api.telegram.org;
         proxy_ssl_server_name on;
         proxy_ssl_protocols TLSv1.2 TLSv1.3;
