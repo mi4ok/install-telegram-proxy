@@ -1,0 +1,536 @@
+/* eslint-disable */
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telegram Proxy Panel</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #242838;
+  --border: #2e3347; --text: #e1e4ed; --text2: #8b90a5;
+  --accent: #5b8af5; --accent-hover: #7aa2ff;
+  --green: #3dd68c; --red: #f55b5b; --orange: #f5a623;
+  --radius: 10px; --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+a { color: var(--accent); text-decoration: none; }
+
+.header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 16px 32px; display: flex; align-items: center; gap: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .info { margin-left: auto; font-size: 13px; color: var(--text2); display: flex; gap: 16px; }
+.header .info span { display: flex; align-items: center; gap: 4px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--green); }
+.dot.red { background: var(--red); }
+
+.tabs {
+  display: flex; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+}
+.tab {
+  padding: 12px 24px; cursor: pointer; font-size: 14px; color: var(--text2);
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.content { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; transition: border-color .15s;
+}
+.card:hover { border-color: var(--accent); }
+.card h3 { font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.card .meta { font-size: 13px; color: var(--text2); }
+.card .meta code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.card .actions { margin-top: 12px; display: flex; gap: 8px; }
+
+/* Buttons */
+.btn {
+  padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 13px;
+  cursor: pointer; transition: all .15s; font-family: var(--font);
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.danger { border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: var(--red); color: #fff; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Forms */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+input, select {
+  padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 14px;
+  font-family: var(--font); width: 100%;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+/* Result */
+.result {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-top: 16px; font-size: 13px; white-space: pre-wrap;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; max-height: 500px;
+  overflow-y: auto; line-height: 1.6;
+}
+.result:empty { display: none; }
+.result .key { color: var(--accent); }
+.result .str { color: var(--green); }
+.result .num { color: var(--orange); }
+.result .bool-true { color: var(--green); }
+.result .bool-false { color: var(--red); }
+.result .null-val { color: var(--text2); }
+
+/* Status badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+  border-radius: 4px; font-size: 11px; font-weight: 600;
+}
+.badge.ok { background: rgba(61,214,140,.15); color: var(--green); }
+.badge.err { background: rgba(245,91,91,.15); color: var(--red); }
+.badge.warn { background: rgba(245,166,35,.15); color: var(--orange); }
+
+/* Logs */
+.log-controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end; flex-wrap: wrap; }
+.log-output {
+  background: #0a0c10; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 12px; white-space: pre-wrap; word-break: break-all;
+  max-height: 600px; overflow-y: auto; color: var(--text2); line-height: 1.7;
+}
+
+/* Add stand form */
+.add-stand-form {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 24px;
+}
+.add-stand-form h3 { margin-bottom: 12px; font-size: 15px; }
+
+/* Section title */
+.section-title { font-size: 15px; color: var(--text2); margin-bottom: 16px; font-weight: 400; }
+
+/* Separator */
+.sep { height: 1px; background: var(--border); margin: 24px 0; }
+
+/* Spinner */
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Webhook info highlights */
+.wh-url { color: var(--accent); }
+.wh-err { color: var(--red); }
+.wh-ok { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Telegram Proxy Panel</h1>
+  <div class="info" id="serverInfo"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="stands">Stands</div>
+  <div class="tab" data-tab="bots">Bot Manager</div>
+  <div class="tab" data-tab="logs">Logs</div>
+</div>
+
+<!-- ===================== STANDS ===================== -->
+<div class="content">
+<div class="panel active" id="panel-stands">
+  <div class="add-stand-form">
+    <h3>Add Stand</h3>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>SimpleOne URL</label>
+        <input type="text" id="newStandUrl" placeholder="https://home.simpleone.ru">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Stand name (optional)</label>
+        <input type="text" id="newStandName" placeholder="auto from domain">
+      </div>
+      <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end">
+        <button class="btn primary" onclick="addStand()">Add</button>
+      </div>
+    </div>
+    <div id="addStandResult" class="result"></div>
+  </div>
+
+  <p class="section-title">Configured stands</p>
+  <div class="cards" id="standsGrid"></div>
+</div>
+
+<!-- ===================== BOTS ===================== -->
+<div class="panel" id="panel-bots">
+  <div class="form-row" style="margin-bottom: 16px">
+    <div class="form-group" style="flex:3">
+      <label>Bot token</label>
+      <input type="text" id="botToken" placeholder="123456789:AABBccDDeeFFgg...">
+    </div>
+    <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end; gap:8px">
+      <button class="btn" onclick="botGetMe()">getMe</button>
+      <button class="btn" onclick="botGetWebhookInfo()">getWebhookInfo</button>
+      <button class="btn danger" onclick="botDeleteWebhook()">deleteWebhook</button>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <h3 style="font-size:15px; margin-bottom:12px">Register webhook</h3>
+  <div class="form-row" style="margin-bottom: 16px">
+    <div class="form-group" style="flex:1">
+      <label>Stand</label>
+      <select id="whStand"></select>
+    </div>
+    <div class="form-group" style="flex:1">
+      <label>Application</label>
+      <select id="whApp">
+        <option value="itsm">ITSM</option>
+        <option value="vcsm">VCSM</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1">
+      <label>Action path (optional)</label>
+      <input type="text" id="whActionPath" placeholder="auto: endpoint / vcsm_endpoint">
+    </div>
+    <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end">
+      <button class="btn primary" onclick="botSetWebhook()">setWebhook</button>
+    </div>
+  </div>
+
+  <div id="botResult" class="result"></div>
+</div>
+
+<!-- ===================== LOGS ===================== -->
+<div class="panel" id="panel-logs">
+  <div class="log-controls">
+    <div class="form-group" style="flex:0 0 auto">
+      <label>Type</label>
+      <select id="logType" style="width:140px">
+        <option value="access">access.log</option>
+        <option value="error">error.log</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:0 0 auto">
+      <label>Lines</label>
+      <input type="number" id="logLines" value="100" style="width:80px" min="10" max="1000">
+    </div>
+    <div class="form-group" style="flex:1">
+      <label>Filter</label>
+      <input type="text" id="logFilter" placeholder="webhook, error, ...">
+    </div>
+    <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end; gap:8px">
+      <button class="btn primary" onclick="loadLogs()">Load</button>
+      <button class="btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">Auto-refresh: OFF</button>
+    </div>
+  </div>
+  <div class="log-output" id="logOutput">Click "Load" to fetch logs</div>
+</div>
+</div>
+
+<script>
+/*
+ * ======================================================================
+ * State
+ * ======================================================================
+ */
+let serverInfo = {};
+let stands = [];
+let autoRefreshInterval = null;
+
+/*
+ * ======================================================================
+ * API helpers
+ * ======================================================================
+ */
+async function api(method, path, body) {
+    const opts = { method, headers: {} };
+    if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+    }
+    const resp = await fetch(`/api${path}`, opts);
+    return resp.json();
+}
+
+/*
+ * ======================================================================
+ * Init
+ * ======================================================================
+ */
+async function init() {
+    serverInfo = await api('GET', '/info');
+    renderServerInfo();
+    await loadStands();
+}
+
+function renderServerInfo() {
+    const el = document.getElementById('serverInfo');
+    const certBadge = serverInfo.certExists
+        ? '<span><span class="dot green"></span> SSL cert</span>'
+        : '<span><span class="dot red"></span> No cert</span>';
+    el.innerHTML = `
+    <span>IP: <strong>${serverInfo.ip}</strong></span>
+    <span>HTTP: <strong>${serverInfo.ports?.http}</strong></span>
+    <span>HTTPS: <strong>${serverInfo.ports?.https}</strong></span>
+    ${certBadge}
+  `;
+}
+
+/*
+ * ======================================================================
+ * Tabs
+ * ======================================================================
+ */
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+    });
+});
+
+/*
+ * ======================================================================
+ * Stands
+ * ======================================================================
+ */
+async function loadStands() {
+    stands = await api('GET', '/stands');
+    renderStands();
+    populateStandSelect();
+}
+
+function renderStands() {
+    const grid = document.getElementById('standsGrid');
+    if (!stands.length) {
+        grid.innerHTML = '<p style="color:var(--text2)">No stands configured</p>';
+        return;
+    }
+    grid.innerHTML = stands.map(s => `
+    <div class="card">
+      <h3>${s.name}</h3>
+      <div class="meta">
+        <div>URL: <code>${s.url}</code></div>
+        <div style="margin-top:4px">Location: <code>${s.location}</code></div>
+      </div>
+      <div class="actions">
+        <button class="btn danger" onclick="removeStand('${s.name}')">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function populateStandSelect() {
+    const sel = document.getElementById('whStand');
+    sel.innerHTML = stands.map(s => `<option value="${s.name}">${s.name} (${s.url})</option>`).join('');
+}
+
+async function addStand() {
+    const url = document.getElementById('newStandUrl').value.trim();
+    const name = document.getElementById('newStandName').value.trim();
+    if (!url) {
+        return;
+    }
+
+    const el = document.getElementById('addStandResult');
+    el.textContent = 'Adding...';
+
+    const result = await api('POST', '/stands', { url, name: name || undefined });
+    el.innerHTML = formatJSON(result);
+    await loadStands();
+}
+
+async function removeStand(name) {
+    if (!confirm(`Remove stand "${name}"?`)) {
+        return;
+    }
+    await api('DELETE', `/stands/${name}`);
+    await loadStands();
+}
+
+/*
+ * ======================================================================
+ * Bot Manager
+ * ======================================================================
+ */
+function getToken() {
+    return document.getElementById('botToken').value.trim();
+}
+
+async function botGetMe() {
+    const token = getToken();
+    if (!token) {
+        return;
+    }
+    showBotResult('Loading...');
+    const r = await api('POST', '/bot/getMe', { token });
+    showBotResult(formatJSON(r));
+}
+
+async function botGetWebhookInfo() {
+    const token = getToken();
+    if (!token) {
+        return;
+    }
+    showBotResult('Loading...');
+    const r = await api('POST', '/bot/getWebhookInfo', { token });
+    showBotResult(formatWebhookInfo(r));
+}
+
+async function botSetWebhook() {
+    const token = getToken();
+    const stand = document.getElementById('whStand').value;
+    const appType = document.getElementById('whApp').value;
+    const actionPath = document.getElementById('whActionPath').value.trim();
+    if (!token || !stand) {
+        return;
+    }
+
+    showBotResult('Registering webhook...');
+    const r = await api('POST', '/bot/setWebhook', {
+        token, stand, app: appType, actionPath: actionPath || undefined,
+    });
+    showBotResult(formatJSON(r));
+}
+
+async function botDeleteWebhook() {
+    const token = getToken();
+    if (!token) {
+        return;
+    }
+    if (!confirm('Delete webhook for this bot?')) {
+        return;
+    }
+    showBotResult('Deleting...');
+    const r = await api('POST', '/bot/deleteWebhook', { token });
+    showBotResult(formatJSON(r));
+}
+
+function showBotResult(html) {
+    document.getElementById('botResult').innerHTML = html;
+}
+
+/*
+ * ======================================================================
+ * Logs
+ * ======================================================================
+ */
+async function loadLogs() {
+    const type = document.getElementById('logType').value;
+    const lines = document.getElementById('logLines').value;
+    const filter = document.getElementById('logFilter').value.trim();
+
+    const params = new URLSearchParams({ type, lines });
+    if (filter) {
+        params.set('filter', filter);
+    }
+
+    const r = await api('GET', `/logs?${params}`);
+    const el = document.getElementById('logOutput');
+    el.textContent = r.output || '(empty)';
+    el.scrollTop = el.scrollHeight;
+}
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        btn.textContent = 'Auto-refresh: OFF';
+    } else {
+        loadLogs();
+        autoRefreshInterval = setInterval(loadLogs, 3000);
+        btn.textContent = 'Auto-refresh: ON';
+    }
+}
+
+/*
+ * ======================================================================
+ * Formatting
+ * ======================================================================
+ */
+function formatJSON(obj) {
+    const json = JSON.stringify(obj, null, 2);
+    return json
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
+        .replace(/: "(.*?)"/g, ': <span class="str">"$1"</span>')
+        .replace(/: (true)/g, ': <span class="bool-true">$1</span>')
+        .replace(/: (false)/g, ': <span class="bool-false">$1</span>')
+        .replace(/: (null)/g, ': <span class="null-val">$1</span>')
+        .replace(/: (-?\d+\.?\d*)/g, ': <span class="num">$1</span>');
+}
+
+function formatWebhookInfo(data) {
+    if (!data.ok || !data.result) {
+        return formatJSON(data);
+    }
+    const r = data.result;
+
+    let html = '<div style="margin-bottom:12px">';
+    if (r.url) {
+        html += `<div><strong>URL:</strong> <span class="wh-url">${esc(r.url)}</span></div>`;
+    } else {
+        html += '<div><strong>URL:</strong> <span class="wh-err">(not set)</span></div>';
+    }
+
+    html += '<div><strong>Certificate:</strong> ';
+    html += r.has_custom_certificate
+        ? '<span class="badge ok">custom cert</span>'
+        : '<span class="badge warn">no custom cert</span>';
+    html += '</div>';
+
+    html += `<div><strong>Pending updates:</strong> <span class="num">${r.pending_update_count}</span></div>`;
+
+    if (r.last_error_message) {
+        html += `<div><strong>Last error:</strong> <span class="wh-err">${esc(r.last_error_message)}</span></div>`;
+        if (r.last_error_date) {
+            const d = new Date(r.last_error_date * 1000);
+            html += `<div style="color:var(--text2); font-size:12px">at ${d.toLocaleString()}</div>`;
+        }
+    } else {
+        html += '<div><strong>Errors:</strong> <span class="wh-ok">none</span></div>';
+    }
+
+    if (r.ip_address) {
+        html += `<div><strong>IP:</strong> ${esc(r.ip_address)}</div>`;
+    }
+    html += '</div>';
+
+    html += '<details><summary style="cursor:pointer;color:var(--text2);font-size:12px">Raw JSON</summary>';
+    html += `<div style="margin-top:8px">${formatJSON(data)}</div></details>`;
+
+    return html;
+}
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+/*
+ * ======================================================================
+ * Start
+ * ======================================================================
+ */
+init();
+</script>
+</body>
+</html>

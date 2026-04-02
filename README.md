@@ -37,6 +37,7 @@ Proxy решает обе проблемы, проксируя трафик че
 | Home | `https://home.simpleone.ru` | `home` | `/webhook/home/` |
 | ITGlobal | `https://support.itglobal.com` | `itglobal` | `/webhook/itglobal/` |
 | VStack | `https://support.vstack.com` | `vstack` | `/webhook/vstack/` |
+| ITPod | `https://my.itpod.com` | `itpod` | `/webhook/itpod/` |
 
 ## Установка
 
@@ -70,8 +71,25 @@ sudo bash install-telegram-proxy.sh 8080 8443 https://support.vstack.com vstack
 |----------|-------------|----------|
 | 1-й | `8080` | HTTP порт для исходящих (SimpleOne -> Telegram) |
 | 2-й | `8443` | HTTPS порт для входящих webhook'ов. Telegram принимает только 443, 80, 88, 8443 |
-| 3-й | — | URL стенда SimpleOne |
-| 4-й | — | Уникальное имя стенда (если не указано, берётся из домена: `home.simpleone.ru` -> `home`) |
+| 3-й | — | URL стенда SimpleOne (любой домен, например `https://crm.company.org`) |
+| 4-й | — | Уникальное имя стенда для маршрутизации webhook'ов. Если не указано, берётся из домена: `home.simpleone.ru` -> `home`. **Указывайте явно**, если первая часть домена не уникальна или неинформативна |
+
+Домен стенда может быть **любым** — `simpleone.ru`, `itglobal.com`, `company.org` и т.д.
+Скрипт не привязан к конкретным доменам. Примеры:
+
+```bash
+# Стандартный домен — имя берётся автоматически
+sudo bash install-telegram-proxy.sh 8080 8443 https://home.simpleone.ru
+# -> stand name: home, location: /webhook/home/
+
+# Кастомный домен — нужно указать имя
+sudo bash install-telegram-proxy.sh 8080 8443 https://support.itglobal.com itglobal
+# -> stand name: itglobal, location: /webhook/itglobal/
+
+# Полностью произвольный домен
+sudo bash install-telegram-proxy.sh 8080 8443 https://crm.company.org company-crm
+# -> stand name: company-crm, location: /webhook/company-crm/
+```
 
 Скрипт автоматически:
 - Установит nginx и openssl
@@ -163,31 +181,58 @@ curl -F "url=https://PROXY_IP:8443/webhook/STAND_NAME/v1/api/APP_SLUG/MODULE_PAT
      https://api.telegram.org/botBOT_TOKEN/setWebhook
 ```
 
-**Примеры:**
-
-Стенд `home`, ITSM-бот:
-```bash
-curl -F "url=https://185.209.49.26:8443/webhook/home/v1/api/itsm_itsm/telegram_bot/v1/endpoint" \
-     -F "certificate=@/etc/nginx/ssl/telegram-proxy.pem" \
-     https://api.telegram.org/botBOT_TOKEN/setWebhook
-```
-
-Стенд `itglobal`, ITSM-бот:
-```bash
-curl -F "url=https://185.209.49.26:8443/webhook/itglobal/v1/api/itsm_itsm/telegram_bot/v1/endpoint" \
-     -F "certificate=@/etc/nginx/ssl/telegram-proxy.pem" \
-     https://api.telegram.org/botBOT_TOKEN/setWebhook
-```
-
 Ответ: `{"ok":true,"result":true,"description":"Webhook was set"}`
 
-**Как узнать webhook URL:**
-- `APP_SLUG` — поле `slug` из `sys_application` (для ITSM: `itsm_itsm`, для VCSM: смотреть в таблице)
-- `MODULE_PATH` — поле `path` из `sys_api_module` (например: `telegram_bot`)
-- `VERSION_PATH` — поле `path` из `sys_api_version` (например: `v1`)
-- `ACTION_PATH` — поле `path` из `sys_api_action` (например: `endpoint`)
+**Стандартные webhook URL по типу бота:**
 
-Эти значения видны в виджете Telegram Connection при подключении бота.
+В SimpleOne два приложения с Telegram-ботами — ITSM и VCSM. У каждого свой slug и endpoint path:
+
+| Приложение | APP_SLUG | MODULE_PATH | VERSION_PATH | ACTION_PATH |
+|------------|----------|-------------|--------------|-------------|
+| ITSM | `itsm_itsm` | `telegram_bot` | `v1` | `endpoint` |
+| VCSM | `vcsm_vcsm` | `vcsm_telegram_bot` | `v1` | `vcsm_endpoint` |
+
+Полные webhook URL для регистрации:
+
+```bash
+# ITSM бот (for_client)
+curl -F "url=https://PROXY_IP:8443/webhook/STAND_NAME/v1/api/itsm_itsm/telegram_bot/v1/endpoint" \
+     -F "certificate=@/etc/nginx/ssl/telegram-proxy.pem" \
+     https://api.telegram.org/botITSM_BOT_TOKEN/setWebhook
+
+# VCSM бот (vcsm_for_client)
+curl -F "url=https://PROXY_IP:8443/webhook/STAND_NAME/v1/api/vcsm_vcsm/vcsm_telegram_bot/v1/vcsm_endpoint" \
+     -F "certificate=@/etc/nginx/ssl/telegram-proxy.pem" \
+     https://api.telegram.org/botVCSM_BOT_TOKEN/setWebhook
+```
+
+**Несколько ботов на одном стенде:**
+
+У каждого бота свой токен и может быть свой endpoint (`ACTION_PATH`).
+Nginx location при этом один — `/webhook/STAND_NAME/`.
+Регистрировать webhook нужно **для каждого бота отдельно**.
+
+На стенде может быть до 4 ботов: ITSM for_client, ITSM router, VCSM for_client, VCSM router.
+Каждому нужна отдельная регистрация с тем же сертификатом.
+
+**Если endpoint на стенде отличается от стандартного** (например `compliance` вместо `endpoint`),
+используйте значение из виджета Telegram Connection или из таблицы `sys_api_action`.
+
+**Как узнать webhook URL для каждого бота:**
+
+Webhook URL состоит из: `https://PROXY_IP:8443/webhook/STAND_NAME/v1/api/APP_SLUG/MODULE_PATH/VERSION_PATH/ACTION_PATH`
+
+| Часть | Откуда | ITSM | VCSM |
+|-------|--------|------|------|
+| `STAND_NAME` | Имя стенда (4-й аргумент скрипта) | `home` | `home` |
+| `APP_SLUG` | `sys_application.slug` | `itsm_itsm` | `vcsm_vcsm` |
+| `MODULE_PATH` | `sys_api_module.path` | `telegram_bot` | `vcsm_telegram_bot` |
+| `VERSION_PATH` | `sys_api_version.path` | `v1` | `v1` |
+| `ACTION_PATH` | `sys_api_action.path` | `endpoint` | `vcsm_endpoint` |
+
+Эти значения видны в виджете **Telegram Connection** при подключении бота — каждый бот привязан к своему endpoint.
+
+**Важно:** после каждого переподключения бота через виджет SimpleOne нужно перерегистрировать webhook с сертификатом с сервера proxy (виджет вызывает `setWebhook` без `.pem`, и Telegram сбрасывает `has_custom_certificate`).
 
 ### Шаг 6. Проверить
 
@@ -289,8 +334,10 @@ openssl s_client -connect PROXY_IP:8443 </dev/null 2>&1 | head -10
 
 | Тег | Где | Что показывает |
 |-----|-----|----------------|
-| `[TgBot]` | Script Include `TgBot` | URL исходящего запроса, HTTP статус, тело ответа |
-| `[TgWebhook]` | API Action (webhook handler) | Входящий webhook, авторизация, шаг обработки, ошибки |
+| `[TgBot]` | ITSM Script Include `TgBot` | URL исходящего запроса, HTTP статус, тело ответа |
+| `[TgWebhook]` | ITSM API Action (webhook handler) | Входящий webhook, авторизация, шаг обработки, ошибки |
+| `[VCSMTgBot]` | VCSM Script Include `TgBot` | URL исходящего запроса, HTTP статус, тело ответа |
+| `[VCSMWebhook]` | VCSM API Action (webhook handler) | Входящий webhook, авторизация, шаг обработки, ошибки |
 | `[TgProxy]` | Виджет Telegram Connection | Проверка статуса подключения, регистрация webhook |
 
 ## Изменённые файлы
@@ -301,20 +348,80 @@ openssl s_client -connect PROXY_IP:8443 </dev/null 2>&1 | head -10
 | `scripts/README.md` | Документация |
 | `itsm/entities/sys_widget/162616365310663943/server.js` | Поддержка `webhook_url` property, логирование |
 | `vcsm/entities/sys_widget/175190002100310856/server.js` | Поддержка `webhook_url` property, логирование |
-| `itsm/entities/sys_script_include/162877053817906313.js` | Логирование исходящих запросов |
-| `itsm/entities/sys_api_action/162695541316594595.js` | try/catch, логирование входящих webhook'ов |
+| `itsm/entities/sys_script_include/162877053817906313.js` | Логирование исходящих запросов (ITSM TgBot) |
+| `vcsm/entities/sys_script_include/175163088001746509.js` | Логирование исходящих запросов (VCSM TgBot) |
+| `itsm/entities/sys_api_action/162695541316594595.js` | try/catch, логирование входящих webhook'ов (ITSM) |
+| `vcsm/entities/sys_api_action/175163124000545788.js` | try/catch, логирование входящих webhook'ов (VCSM) |
 
 ## Добавить новый стенд
 
-1. На сервере proxy:
+Пример: добавить стенд `https://crm.newclient.ru` с именем `newclient`.
+
+1. **На сервере proxy** — добавить стенд в nginx:
 ```bash
-sudo bash install-telegram-proxy.sh 8080 8443 https://NEW_STAND_URL STAND_NAME
+sudo bash install-telegram-proxy.sh 8080 8443 https://crm.newclient.ru newclient
 ```
 
-2. На стенде: задеплоить изменённые файлы виджетов (ITSM/VCSM)
+2. **На стенде** — задеплоить изменённые файлы виджетов (ITSM/VCSM) если ещё не задеплоены
 
-3. На стенде: создать 4 system property (шаг 4)
+3. **На стенде** — создать 4 system property:
 
-4. С сервера proxy: зарегистрировать webhook с сертификатом (шаг 5)
+| Property | Значение |
+|----------|---------|
+| `itsm.telegram_bot.url` | `http://PROXY_IP:8080` |
+| `vcsm.telegram_bot.url` | `http://PROXY_IP:8080` |
+| `itsm.telegram_bot.webhook_url` | `https://PROXY_IP:8443/webhook/newclient` |
+| `vcsm.telegram_bot.webhook_url` | `https://PROXY_IP:8443/webhook/newclient` |
 
-5. На стенде: подключить бота через виджет Telegram Connection (шаг 7)
+4. **С сервера proxy** — зарегистрировать webhook с сертификатом для каждого бота:
+```bash
+curl -F "url=https://PROXY_IP:8443/webhook/newclient/v1/api/APP_SLUG/MODULE/VERSION/ACTION" \
+     -F "certificate=@/etc/nginx/ssl/telegram-proxy.pem" \
+     https://api.telegram.org/botBOT_TOKEN/setWebhook
+```
+
+5. **На стенде** — подключить бота через виджет Telegram Connection
+
+## Веб-панель управления
+
+Опциональный веб-интерфейс для управления proxy — просмотр стендов, регистрация webhook'ов, логи nginx.
+
+### Установка
+
+На сервере proxy:
+
+```bash
+cd install-telegram-proxy/scripts/web-panel
+sudo bash install.sh 9090 admin
+```
+
+Аргументы:
+
+| Аргумент | По умолчанию | Описание |
+|----------|-------------|----------|
+| 1-й | `9090` | Порт веб-панели |
+| 2-й | `admin` | Имя пользователя для HTTP-авторизации |
+
+Скрипт запросит пароль, установит Node.js (если нет), поставит зависимости и создаст systemd-сервис.
+
+### Доступ
+
+```
+http://PROXY_IP:9090
+```
+
+Не забудьте открыть порт: `ufw allow 9090/tcp`
+
+### Функции
+
+- **Stands** — список стендов из nginx-конфига, добавление/удаление
+- **Bot Manager** — getMe, getWebhookInfo, setWebhook (с сертификатом), deleteWebhook
+- **Logs** — просмотр access/error логов nginx с фильтрацией и авто-обновлением
+
+### Управление сервисом
+
+```bash
+systemctl status telegram-proxy-panel
+systemctl restart telegram-proxy-panel
+journalctl -u telegram-proxy-panel -f
+```

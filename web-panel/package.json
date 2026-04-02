@@ -1,0 +1,12 @@
+{
+  "name": "telegram-proxy-panel",
+  "version": "1.0.0",
+  "description": "Web panel for Telegram proxy management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
