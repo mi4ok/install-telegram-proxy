@@ -1,10 +1,9 @@
-/* eslint-disable */
 <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram Proxy Panel</title>
+<title>Telegram Proxy — Панель управления</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -139,39 +138,39 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <body>
 
 <div class="header">
-  <h1>Telegram Proxy Panel</h1>
+  <h1>Telegram Proxy — Панель управления</h1>
   <div class="info" id="serverInfo"></div>
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="stands">Stands</div>
-  <div class="tab" data-tab="bots">Bot Manager</div>
-  <div class="tab" data-tab="setup">Setup Script</div>
-  <div class="tab" data-tab="logs">Logs</div>
+  <div class="tab active" data-tab="stands">Стенды</div>
+  <div class="tab" data-tab="bots">Управление ботами</div>
+  <div class="tab" data-tab="setup">Скрипт настройки</div>
+  <div class="tab" data-tab="logs">Логи</div>
 </div>
 
 <!-- ===================== STANDS ===================== -->
 <div class="content">
 <div class="panel active" id="panel-stands">
   <div class="add-stand-form">
-    <h3>Add Stand</h3>
+    <h3>Добавить стенд</h3>
     <div class="form-row">
       <div class="form-group" style="flex:2">
-        <label>SimpleOne URL</label>
+        <label>URL SimpleOne</label>
         <input type="text" id="newStandUrl" placeholder="https://home.simpleone.ru">
       </div>
       <div class="form-group" style="flex:1">
-        <label>Stand name (optional)</label>
-        <input type="text" id="newStandName" placeholder="auto from domain">
+        <label>Название стенда (необязательно)</label>
+        <input type="text" id="newStandName" placeholder="автоматически из домена">
       </div>
       <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end">
-        <button class="btn primary" onclick="addStand()">Add</button>
+        <button class="btn primary" onclick="addStand()">Добавить</button>
       </div>
     </div>
     <div id="addStandResult" class="result"></div>
   </div>
 
-  <p class="section-title">Configured stands</p>
+  <p class="section-title">Настроенные стенды</p>
   <div class="cards" id="standsGrid"></div>
 </div>
 
@@ -179,7 +178,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <div class="panel" id="panel-bots">
   <div class="form-row" style="margin-bottom: 16px">
     <div class="form-group" style="flex:3">
-      <label>Bot token</label>
+      <label>Токен бота</label>
       <input type="text" id="botToken" placeholder="123456789:AABBccDDeeFFgg...">
     </div>
     <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end; gap:8px">
@@ -191,22 +190,22 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
   <div class="sep"></div>
 
-  <h3 style="font-size:15px; margin-bottom:12px">Register webhook</h3>
+  <h3 style="font-size:15px; margin-bottom:12px">Регистрация вебхука</h3>
   <div class="form-row" style="margin-bottom: 16px">
     <div class="form-group" style="flex:1">
-      <label>Stand</label>
+      <label>Стенд</label>
       <select id="whStand"></select>
     </div>
     <div class="form-group" style="flex:1">
-      <label>Application</label>
+      <label>Приложение</label>
       <select id="whApp">
         <option value="itsm">ITSM</option>
         <option value="vcsm">VCSM</option>
       </select>
     </div>
     <div class="form-group" style="flex:1">
-      <label>Action path (optional)</label>
-      <input type="text" id="whActionPath" placeholder="auto: endpoint / vcsm_endpoint">
+      <label>Путь действия (необязательно)</label>
+      <input type="text" id="whActionPath" placeholder="авто: endpoint / vcsm_endpoint">
     </div>
     <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end">
       <button class="btn primary" onclick="botSetWebhook()">setWebhook</button>
@@ -218,36 +217,36 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <!-- ===================== SETUP SCRIPT ===================== -->
 <div class="panel" id="panel-setup">
-  <p class="section-title">Server script for SimpleOne — creates/updates system properties for Telegram proxy</p>
+  <p class="section-title">Серверный скрипт для SimpleOne — создаёт/обновляет системные свойства для Telegram-прокси</p>
 
   <div class="form-row" style="margin-bottom: 16px">
     <div class="form-group" style="flex:1">
-      <label>Stand</label>
+      <label>Стенд</label>
       <select id="setupStand" onchange="generateScript()"></select>
     </div>
   </div>
 
   <div style="display:flex; gap:8px; margin-bottom:12px">
-    <button class="btn primary" onclick="copyScript()">Copy to clipboard</button>
+    <button class="btn primary" onclick="copyScript()">Копировать в буфер</button>
   </div>
 
   <div class="log-output" id="setupScript" style="user-select:all"></div>
 
   <div class="sep"></div>
 
-  <p class="section-title" style="margin-top:0">How to use</p>
+  <p class="section-title" style="margin-top:0">Как использовать</p>
   <div style="font-size:13px; color:var(--text2); line-height:1.8">
-    <p>1. Copy the script above</p>
-    <p>2. On your SimpleOne instance, go to <strong>System Properties</strong> (<code>sys_property</code>)</p>
-    <p>3. Open <strong>Fix Script</strong> or <strong>Background Script</strong></p>
-    <p>4. Paste and run the script</p>
-    <p style="margin-top:8px">The script will create properties if they don't exist, or update their values if they do.</p>
-    <p>Properties set:</p>
+    <p>1. Скопируйте скрипт выше</p>
+    <p>2. В вашем экземпляре SimpleOne перейдите в <strong>Системные свойства</strong> (<code>sys_property</code>)</p>
+    <p>3. Откройте <strong>Fix Script</strong> или <strong>Background Script</strong></p>
+    <p>4. Вставьте и выполните скрипт</p>
+    <p style="margin-top:8px">Скрипт создаст свойства, если их нет, или обновит значения, если они уже существуют.</p>
+    <p>Устанавливаемые свойства:</p>
     <ul style="margin-left:20px; margin-top:4px">
-      <li><code>itsm.telegram_bot.url</code> — HTTP proxy URL for outgoing Telegram API calls</li>
-      <li><code>vcsm.telegram_bot.url</code> — HTTP proxy URL for outgoing Telegram API calls (VCSM)</li>
-      <li><code>itsm.telegram_bot.webhook_url</code> — HTTPS proxy URL for incoming webhook registration</li>
-      <li><code>vcsm.telegram_bot.webhook_url</code> — HTTPS proxy URL for incoming webhook registration</li>
+      <li><code>itsm.telegram_bot.url</code> — URL HTTP-прокси для исходящих вызовов Telegram API</li>
+      <li><code>vcsm.telegram_bot.url</code> — URL HTTP-прокси для исходящих вызовов Telegram API (VCSM)</li>
+      <li><code>itsm.telegram_bot.webhook_url</code> — URL HTTPS-прокси для регистрации входящих вебхуков</li>
+      <li><code>vcsm.telegram_bot.webhook_url</code> — URL HTTPS-прокси для регистрации входящих вебхуков</li>
     </ul>
   </div>
 </div>
@@ -256,26 +255,26 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <div class="panel" id="panel-logs">
   <div class="log-controls">
     <div class="form-group" style="flex:0 0 auto">
-      <label>Type</label>
+      <label>Тип</label>
       <select id="logType" style="width:140px">
         <option value="access">access.log</option>
         <option value="error">error.log</option>
       </select>
     </div>
     <div class="form-group" style="flex:0 0 auto">
-      <label>Lines</label>
+      <label>Строк</label>
       <input type="number" id="logLines" value="100" style="width:80px" min="10" max="1000">
     </div>
     <div class="form-group" style="flex:1">
-      <label>Filter</label>
+      <label>Фильтр</label>
       <input type="text" id="logFilter" placeholder="webhook, error, ...">
     </div>
     <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end; gap:8px">
-      <button class="btn primary" onclick="loadLogs()">Load</button>
-      <button class="btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">Auto-refresh: OFF</button>
+      <button class="btn primary" onclick="loadLogs()">Загрузить</button>
+      <button class="btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">Автообновление: ВЫКЛ</button>
     </div>
   </div>
-  <div class="log-output" id="logOutput">Click "Load" to fetch logs</div>
+  <div class="log-output" id="logOutput">Нажмите «Загрузить» для получения логов</div>
 </div>
 </div>
 
@@ -318,8 +317,8 @@ async function init() {
 function renderServerInfo() {
     const el = document.getElementById('serverInfo');
     const certBadge = serverInfo.certExists
-        ? '<span><span class="dot green"></span> SSL cert</span>'
-        : '<span><span class="dot red"></span> No cert</span>';
+        ? '<span><span class="dot green"></span> SSL-сертификат</span>'
+        : '<span><span class="dot red"></span> Нет сертификата</span>';
     el.innerHTML = `
     <span>IP: <strong>${serverInfo.ip}</strong></span>
     <span>HTTP: <strong>${serverInfo.ports?.http}</strong></span>
@@ -357,7 +356,7 @@ async function loadStands() {
 function renderStands() {
     const grid = document.getElementById('standsGrid');
     if (!stands.length) {
-        grid.innerHTML = '<p style="color:var(--text2)">No stands configured</p>';
+        grid.innerHTML = '<p style="color:var(--text2)">Стенды не настроены</p>';
         return;
     }
     grid.innerHTML = stands.map(s => `
@@ -365,10 +364,10 @@ function renderStands() {
       <h3>${s.name}</h3>
       <div class="meta">
         <div>URL: <code>${s.url}</code></div>
-        <div style="margin-top:4px">Location: <code>${s.location}</code></div>
+        <div style="margin-top:4px">Расположение: <code>${s.location}</code></div>
       </div>
       <div class="actions">
-        <button class="btn danger" onclick="removeStand('${s.name}')">Remove</button>
+        <button class="btn danger" onclick="removeStand('${s.name}')">Удалить</button>
       </div>
     </div>
   `).join('');
@@ -387,7 +386,7 @@ async function addStand() {
     }
 
     const el = document.getElementById('addStandResult');
-    el.textContent = 'Adding...';
+    el.textContent = 'Добавление...';
 
     const result = await api('POST', '/stands', { url, name: name || undefined });
     el.innerHTML = formatJSON(result);
@@ -395,7 +394,7 @@ async function addStand() {
 }
 
 async function removeStand(name) {
-    if (!confirm(`Remove stand "${name}"?`)) {
+    if (!confirm(`Удалить стенд «${name}»?`)) {
         return;
     }
     await api('DELETE', `/stands/${name}`);
@@ -416,7 +415,7 @@ async function botGetMe() {
     if (!token) {
         return;
     }
-    showBotResult('Loading...');
+    showBotResult('Загрузка...');
     const r = await api('POST', '/bot/getMe', { token });
     showBotResult(formatJSON(r));
 }
@@ -426,7 +425,7 @@ async function botGetWebhookInfo() {
     if (!token) {
         return;
     }
-    showBotResult('Loading...');
+    showBotResult('Загрузка...');
     const r = await api('POST', '/bot/getWebhookInfo', { token });
     showBotResult(formatWebhookInfo(r));
 }
@@ -440,7 +439,7 @@ async function botSetWebhook() {
         return;
     }
 
-    showBotResult('Registering webhook...');
+    showBotResult('Регистрация вебхука...');
     const r = await api('POST', '/bot/setWebhook', {
         token, stand, app: appType, actionPath: actionPath || undefined,
     });
@@ -452,10 +451,10 @@ async function botDeleteWebhook() {
     if (!token) {
         return;
     }
-    if (!confirm('Delete webhook for this bot?')) {
+    if (!confirm('Удалить вебхук для этого бота?')) {
         return;
     }
-    showBotResult('Deleting...');
+    showBotResult('Удаление...');
     const r = await api('POST', '/bot/deleteWebhook', { token });
     showBotResult(formatJSON(r));
 }
@@ -478,7 +477,7 @@ function populateSetupStandSelect() {
 function generateScript() {
     const standName = document.getElementById('setupStand').value;
     if (!standName || !serverInfo.ip) {
-        document.getElementById('setupScript').textContent = 'Select a stand...';
+        document.getElementById('setupScript').textContent = 'Выберите стенд...';
         return;
     }
 
@@ -548,7 +547,7 @@ function copyScript() {
     navigator.clipboard.writeText(text).then(() => {
         const btn = event.target;
         const orig = btn.textContent;
-        btn.textContent = 'Copied!';
+        btn.textContent = 'Скопировано!';
         setTimeout(() => btn.textContent = orig, 1500);
     });
 }
@@ -570,7 +569,7 @@ async function loadLogs() {
 
     const r = await api('GET', `/logs?${params}`);
     const el = document.getElementById('logOutput');
-    el.textContent = r.output || '(empty)';
+    el.textContent = r.output || '(пусто)';
     el.scrollTop = el.scrollHeight;
 }
 
@@ -579,11 +578,11 @@ function toggleAutoRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
-        btn.textContent = 'Auto-refresh: OFF';
+        btn.textContent = 'Автообновление: ВЫКЛ';
     } else {
         loadLogs();
         autoRefreshInterval = setInterval(loadLogs, 3000);
-        btn.textContent = 'Auto-refresh: ON';
+        btn.textContent = 'Автообновление: ВКЛ';
     }
 }
 
@@ -614,25 +613,25 @@ function formatWebhookInfo(data) {
     if (r.url) {
         html += `<div><strong>URL:</strong> <span class="wh-url">${esc(r.url)}</span></div>`;
     } else {
-        html += '<div><strong>URL:</strong> <span class="wh-err">(not set)</span></div>';
+        html += '<div><strong>URL:</strong> <span class="wh-err">(не задан)</span></div>';
     }
 
-    html += '<div><strong>Certificate:</strong> ';
+    html += '<div><strong>Сертификат:</strong> ';
     html += r.has_custom_certificate
-        ? '<span class="badge ok">custom cert</span>'
-        : '<span class="badge warn">no custom cert</span>';
+        ? '<span class="badge ok">свой сертификат</span>'
+        : '<span class="badge warn">нет своего сертификата</span>';
     html += '</div>';
 
-    html += `<div><strong>Pending updates:</strong> <span class="num">${r.pending_update_count}</span></div>`;
+    html += `<div><strong>Ожидающие обновления:</strong> <span class="num">${r.pending_update_count}</span></div>`;
 
     if (r.last_error_message) {
-        html += `<div><strong>Last error:</strong> <span class="wh-err">${esc(r.last_error_message)}</span></div>`;
+        html += `<div><strong>Последняя ошибка:</strong> <span class="wh-err">${esc(r.last_error_message)}</span></div>`;
         if (r.last_error_date) {
             const d = new Date(r.last_error_date * 1000);
-            html += `<div style="color:var(--text2); font-size:12px">at ${d.toLocaleString()}</div>`;
+            html += `<div style="color:var(--text2); font-size:12px">${d.toLocaleString()}</div>`;
         }
     } else {
-        html += '<div><strong>Errors:</strong> <span class="wh-ok">none</span></div>';
+        html += '<div><strong>Ошибки:</strong> <span class="wh-ok">нет</span></div>';
     }
 
     if (r.ip_address) {
@@ -640,7 +639,7 @@ function formatWebhookInfo(data) {
     }
     html += '</div>';
 
-    html += '<details><summary style="cursor:pointer;color:var(--text2);font-size:12px">Raw JSON</summary>';
+    html += '<details><summary style="cursor:pointer;color:var(--text2);font-size:12px">Исходный JSON</summary>';
     html += `<div style="margin-top:8px">${formatJSON(data)}</div></details>`;
 
     return html;
