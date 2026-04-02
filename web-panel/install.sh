@@ -4,15 +4,23 @@ set -e
 PANEL_DIR="$(cd "$(dirname "$0")" && pwd)"
 PANEL_PORT="${1:-9090}"
 PANEL_USER="${2:-admin}"
+PANEL_PASS="${3:-}"
 
 echo "=== Telegram Proxy Panel Installer ==="
 echo "Directory: ${PANEL_DIR}"
 echo "Port:      ${PANEL_PORT}"
 echo "User:      ${PANEL_USER}"
+echo "Password:  ${PANEL_PASS:+(set)}"
 echo ""
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Error: run as root (sudo bash $0 $*)"
+    exit 1
+fi
+
+if [ -z "$PANEL_PASS" ]; then
+    echo "Usage: sudo bash $0 PORT USER PASSWORD"
+    echo "Example: sudo bash $0 9090 admin MySecretPass"
     exit 1
 fi
 
@@ -34,11 +42,7 @@ cd "$PANEL_DIR"
 npm install --production --silent 2>/dev/null
 echo "  Done"
 
-echo "[3/4] Setting password..."
-read -s -p "  Enter panel password (empty = no auth): " PANEL_PASS
-echo ""
-
-echo "[4/4] Creating systemd service..."
+echo "[3/4] Creating systemd service..."
 cat > /etc/systemd/system/telegram-proxy-panel.service <<SERVICE
 [Unit]
 Description=Telegram Proxy Web Panel
@@ -63,15 +67,23 @@ systemctl enable telegram-proxy-panel
 systemctl restart telegram-proxy-panel
 
 echo ""
+echo "[4/4] Opening firewall port..."
+if command -v ufw > /dev/null 2>&1; then
+    ufw allow "${PANEL_PORT}/tcp" > /dev/null 2>&1 || true
+    echo "  ufw: port ${PANEL_PORT} opened"
+elif command -v firewall-cmd > /dev/null 2>&1; then
+    firewall-cmd --permanent --add-port="${PANEL_PORT}/tcp" > /dev/null 2>&1 || true
+    firewall-cmd --reload > /dev/null 2>&1 || true
+    echo "  firewalld: port ${PANEL_PORT} opened"
+fi
+
+echo ""
 echo "====================================="
 echo "  Panel is running!"
 echo "====================================="
 echo ""
 echo "  URL:  http://$(hostname -I | awk '{print $1}'):${PANEL_PORT}"
 echo "  User: ${PANEL_USER}"
-echo ""
-echo "  Firewall:"
-echo "    ufw allow ${PANEL_PORT}/tcp"
 echo ""
 echo "  Management:"
 echo "    systemctl status telegram-proxy-panel"
