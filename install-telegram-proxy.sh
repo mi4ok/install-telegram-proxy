@@ -4,6 +4,7 @@ set -e
 PROXY_PORT_HTTP="${1:-8080}"
 PROXY_PORT_HTTPS="${2:-8443}"
 SIMPLEONE_URL="${3:-}"
+CUSTOM_STAND_NAME="${4:-}"
 
 echo "=== Telegram Bi-directional Proxy Installer ==="
 echo "HTTP  port (SimpleOne -> Telegram): ${PROXY_PORT_HTTP}"
@@ -50,7 +51,11 @@ echo "[3/7] Creating nginx config..."
 CONF_FILE="/etc/nginx/sites-available/telegram-proxy.conf"
 
 if [ -n "$SIMPLEONE_URL" ]; then
-    STAND_NAME=$(echo "$SIMPLEONE_URL" | sed 's|https\?://||' | cut -d'.' -f1)
+    if [ -n "$CUSTOM_STAND_NAME" ]; then
+        STAND_NAME="$CUSTOM_STAND_NAME"
+    else
+        STAND_NAME=$(echo "$SIMPLEONE_URL" | sed 's|https\?://||' | cut -d'.' -f1)
+    fi
     STAND_HOST=$(echo "$SIMPLEONE_URL" | sed 's|https\?://||' | cut -d'/' -f1)
     echo "  Adding webhook proxy for stand: ${STAND_NAME} -> ${SIMPLEONE_URL}"
 fi
@@ -215,6 +220,9 @@ echo "====================================="
 echo ""
 echo "Re-run with a different SimpleOne URL:"
 echo "  sudo bash $0 ${PROXY_PORT_HTTP} ${PROXY_PORT_HTTPS} https://OTHER.simpleone.ru"
+echo ""
+echo "For non-standard domains, specify stand name as 4th argument:"
+echo "  sudo bash $0 ${PROXY_PORT_HTTP} ${PROXY_PORT_HTTPS} https://support.itglobal.com itglobal"
 echo ""
 echo "Config: ${CONF_FILE}"
 echo ""
