@@ -1,3 +1,4 @@
+/* eslint-disable */
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -145,6 +146,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <div class="tabs">
   <div class="tab active" data-tab="stands">Stands</div>
   <div class="tab" data-tab="bots">Bot Manager</div>
+  <div class="tab" data-tab="setup">Setup Script</div>
   <div class="tab" data-tab="logs">Logs</div>
 </div>
 
@@ -212,6 +214,42 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   </div>
 
   <div id="botResult" class="result"></div>
+</div>
+
+<!-- ===================== SETUP SCRIPT ===================== -->
+<div class="panel" id="panel-setup">
+  <p class="section-title">Server script for SimpleOne — creates/updates system properties for Telegram proxy</p>
+
+  <div class="form-row" style="margin-bottom: 16px">
+    <div class="form-group" style="flex:1">
+      <label>Stand</label>
+      <select id="setupStand" onchange="generateScript()"></select>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px; margin-bottom:12px">
+    <button class="btn primary" onclick="copyScript()">Copy to clipboard</button>
+  </div>
+
+  <div class="log-output" id="setupScript" style="user-select:all"></div>
+
+  <div class="sep"></div>
+
+  <p class="section-title" style="margin-top:0">How to use</p>
+  <div style="font-size:13px; color:var(--text2); line-height:1.8">
+    <p>1. Copy the script above</p>
+    <p>2. On your SimpleOne instance, go to <strong>System Properties</strong> (<code>sys_property</code>)</p>
+    <p>3. Open <strong>Fix Script</strong> or <strong>Background Script</strong></p>
+    <p>4. Paste and run the script</p>
+    <p style="margin-top:8px">The script will create properties if they don't exist, or update their values if they do.</p>
+    <p>Properties set:</p>
+    <ul style="margin-left:20px; margin-top:4px">
+      <li><code>itsm.telegram_bot.url</code> — HTTP proxy URL for outgoing Telegram API calls</li>
+      <li><code>vcsm.telegram_bot.url</code> — HTTP proxy URL for outgoing Telegram API calls (VCSM)</li>
+      <li><code>itsm.telegram_bot.webhook_url</code> — HTTPS proxy URL for incoming webhook registration</li>
+      <li><code>vcsm.telegram_bot.webhook_url</code> — HTTPS proxy URL for incoming webhook registration</li>
+    </ul>
+  </div>
 </div>
 
 <!-- ===================== LOGS ===================== -->
@@ -313,6 +351,7 @@ async function loadStands() {
     stands = await api('GET', '/stands');
     renderStands();
     populateStandSelect();
+    populateSetupStandSelect();
 }
 
 function renderStands() {
@@ -423,6 +462,95 @@ async function botDeleteWebhook() {
 
 function showBotResult(html) {
     document.getElementById('botResult').innerHTML = html;
+}
+
+/*
+ * ======================================================================
+ * Setup Script
+ * ======================================================================
+ */
+function populateSetupStandSelect() {
+    const sel = document.getElementById('setupStand');
+    sel.innerHTML = stands.map(s => `<option value="${s.name}">${s.name} (${s.url})</option>`).join('');
+    generateScript();
+}
+
+function generateScript() {
+    const standName = document.getElementById('setupStand').value;
+    if (!standName || !serverInfo.ip) {
+        document.getElementById('setupScript').textContent = 'Select a stand...';
+        return;
+    }
+
+    const httpUrl = `http://${serverInfo.ip}:${serverInfo.ports.http}`;
+    const webhookUrl = `https://${serverInfo.ip}:${serverInfo.ports.https}/webhook/${standName}`;
+
+    const script = `// Telegram Proxy — System Properties Setup
+// Stand: ${standName}
+// Generated: ${new Date().toISOString()}
+//
+// Run this in SimpleOne Background Script / Fix Script
+// It will create or update the 4 required system properties.
+
+(function() {
+    const properties = [
+        {
+            name: 'itsm.telegram_bot.url',
+            value: '${httpUrl}',
+            description: 'Telegram Bot API proxy URL (ITSM, outgoing)'
+        },
+        {
+            name: 'vcsm.telegram_bot.url',
+            value: '${httpUrl}',
+            description: 'Telegram Bot API proxy URL (VCSM, outgoing)'
+        },
+        {
+            name: 'itsm.telegram_bot.webhook_url',
+            value: '${webhookUrl}',
+            description: 'Telegram webhook proxy URL (ITSM, incoming)'
+        },
+        {
+            name: 'vcsm.telegram_bot.webhook_url',
+            value: '${webhookUrl}',
+            description: 'Telegram webhook proxy URL (VCSM, incoming)'
+        }
+    ];
+
+    properties.forEach(function(prop) {
+        const gr = new SimpleRecord('sys_property');
+        gr.addQuery('name', prop.name);
+        gr.selectAttributes(['sys_id', 'name', 'value', 'description']);
+        gr.find();
+
+        if (gr.next()) {
+            gr.value = prop.value;
+            gr.description = prop.description;
+            gr.update();
+            ss.info('Updated: ' + prop.name + ' = ' + prop.value);
+        } else {
+            const nr = new SimpleRecord('sys_property');
+            nr.name = prop.name;
+            nr.value = prop.value;
+            nr.description = prop.description;
+            nr.insert();
+            ss.info('Created: ' + prop.name + ' = ' + prop.value);
+        }
+    });
+
+    ss.info('Telegram proxy properties configured for ${standName}');
+})();`;
+
+    document.getElementById('setupScript').textContent = script;
+}
+
+function copyScript() {
+    const text = document.getElementById('setupScript').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+    });
 }
 
 /*
